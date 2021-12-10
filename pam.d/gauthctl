@@ -1,2 +1,2 @@
-auth       include      system-auth
-account    include      system-auth
+auth       include      common-auth
+account    include      common-auth
