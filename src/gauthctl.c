@@ -361,7 +361,14 @@ int main(int argc, char* argv[])
             if (getuid() == 0)
             {    
                 state_path = get_state_path(givenuser);
-                ret = disable(state_path);
+                if (status(state_path) == true)
+                {
+                    ret = disable(state_path);
+                }
+                else
+                {
+                    fprintf(stderr, "Error: No 2FA configuration found for user %s.\n",givenuser);
+                }
             }
             else
             {
