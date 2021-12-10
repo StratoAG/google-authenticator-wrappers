@@ -1,5 +1,6 @@
 /* gauthctl -- manage secure gauth configs
  * (c) 2018 Michał Górny
+ *     2021 extended Björn Adler, STRATO AG
  * Licensed under 2-clause BSD license
  */
 
@@ -27,6 +28,7 @@ static const bool not_reached = false;
 const struct option long_opts[] = {
 	{"enable", no_argument, NULL, 'e'},
 	{"disable", no_argument, NULL, 'd'},
+	{"status", no_argument, NULL, 's'},
 
 	{"help", no_argument, NULL, 'h'},
 	{"version", no_argument, NULL, 'V'},
@@ -39,6 +41,7 @@ enum command
 	CMD_NULL,
 	CMD_ENABLE,
 	CMD_DISABLE,
+        CMD_STATUS,
 	CMD_NEXT
 };
 
@@ -58,6 +61,9 @@ int usage(const char* prog_name, bool help)
 	fprintf(out, "       %s --disable\n", prog_name);
 	if (help)
 		fputs("            Disable gauth for the user\n", out);
+	fprintf(out, "       %s --status\n", prog_name);
+	if (help)
+		fputs("            Checks status of gauth for the user\n", out);
 	return help ? 0 : 1;
 }
 
@@ -262,6 +268,20 @@ bool disable(const char* state_path)
 	return false;
 }
 
+int status(const char * filename)
+{
+    FILE* const out = stdout;
+    fprintf(out, "Check existance of %s \n", filename);
+    FILE *file;
+    if (file = fopen(filename, "r"))
+    {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
+
+
 int main(int argc, char* argv[])
 {
 	char opt;
@@ -270,7 +290,7 @@ int main(int argc, char* argv[])
 	char* state_path;
 	bool ret;
 
-	while ((opt = getopt_long(argc, argv, "e:dhV", long_opts, NULL)) != -1)
+	while ((opt = getopt_long(argc, argv, "e:dshV", long_opts, NULL)) != -1)
 	{
 		switch (opt)
 		{
@@ -279,6 +299,9 @@ int main(int argc, char* argv[])
 				break;
 			case 'd':
 				cmd = CMD_DISABLE;
+				break;
+			case 's':
+				cmd = CMD_STATUS;
 				break;
 			case 'h':
 				return usage(argv[0], true);
@@ -324,6 +347,9 @@ int main(int argc, char* argv[])
 		case CMD_DISABLE:
 			ret = disable(state_path);
 			break;
+        case CMD_STATUS:
+            ret = status(state_path);
+            break;
 		case CMD_NULL:
 		case CMD_NEXT:
 			assert(not_reached);
