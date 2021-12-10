@@ -27,9 +27,8 @@ static const bool not_reached = false;
 /* program long options */
 const struct option long_opts[] = {
 	{"enable", no_argument, NULL, 'e'},
-	{"disable", no_argument, NULL, 'd'},
+	{"disable", required_argument, NULL, 'd'},
 	{"status", no_argument, NULL, 's'},
-
 	{"help", no_argument, NULL, 'h'},
 	{"version", no_argument, NULL, 'V'},
 	{NULL},
@@ -41,7 +40,7 @@ enum command
 	CMD_NULL,
 	CMD_ENABLE,
 	CMD_DISABLE,
-        CMD_STATUS,
+    CMD_STATUS,
 	CMD_NEXT
 };
 
@@ -58,9 +57,9 @@ int usage(const char* prog_name, bool help)
 	fprintf(out, "Usage: %s --enable\n", prog_name);
 	if (help)
 		fputs("            Enable gauth using config supplied on fd 3\n", out);
-	fprintf(out, "       %s --disable\n", prog_name);
+	fprintf(out, "       %s --disable username\n", prog_name);
 	if (help)
-		fputs("            Disable gauth for the user\n", out);
+		fputs("            Disable gauth for given user\n", out);
 	fprintf(out, "       %s --status\n", prog_name);
 	if (help)
 		fputs("            Checks status of gauth for the user\n", out);
@@ -287,10 +286,11 @@ int main(int argc, char* argv[])
 	char opt;
 	enum command cmd = CMD_NULL;
 	const char* username;
+    const char* givenuser;
 	char* state_path;
 	bool ret;
 
-	while ((opt = getopt_long(argc, argv, "e:dshV", long_opts, NULL)) != -1)
+	while ((opt = getopt_long(argc, argv, "e:d:shV", long_opts, NULL)) != -1)
 	{
 		switch (opt)
 		{
@@ -299,6 +299,7 @@ int main(int argc, char* argv[])
 				break;
 			case 'd':
 				cmd = CMD_DISABLE;
+                givenuser = optarg;
 				break;
 			case 's':
 				cmd = CMD_STATUS;
@@ -308,6 +309,9 @@ int main(int argc, char* argv[])
 			case 'V':
 				printf("gauthctl " VERSION "\n");
 				return 0;
+            case ':': /* missing argument of a parameter */
+                fprintf(stderr, "missing argument.\n");
+                break;
 			default:
 				return usage(argv[0], false);
 		}
@@ -342,10 +346,27 @@ int main(int argc, char* argv[])
 	switch (cmd)
 	{
 		case CMD_ENABLE:
-			ret = enable(state_path, 3);
+            //Enable only possible if 2FA not yet enabled for user
+            if (status(state_path) == false)
+            {
+			    ret = enable(state_path, 3);
+            }
+            else
+            {
+                fprintf(stderr, "Error: 2FA configuration exists for user %s.\n",username);
+            }
 			break;
 		case CMD_DISABLE:
-			ret = disable(state_path);
+            //Only root is allowed to disable 2FA for user
+            if (getuid() == 0)
+            {    
+                state_path = get_state_path(givenuser);
+                ret = disable(state_path);
+            }
+            else
+            {
+                fprintf(stderr, "Error: Only root is allowed to disable 2FA for user %s.\n",givenuser);
+            }
 			break;
         case CMD_STATUS:
             ret = status(state_path);
